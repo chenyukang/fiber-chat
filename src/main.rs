@@ -22,6 +22,7 @@ use tracing::{error, info, warn};
 
 const CHAT_RECORD_KEY: u32 = 0xcafe;
 const DEMO_PAYMENT_AMOUNT: u128 = 1_000;
+const MIN_BIDIRECTIONAL_LIQUIDITY: u128 = 1_000_000;
 const CHANNEL_FUNDING_AMOUNT: u128 = 61_000_000_000_000;
 const NODE_1_2_FEE_RATE: u128 = 1_200;
 const NODE_2_3_FEE_RATE: u128 = 1_400;
@@ -229,6 +230,8 @@ impl DemoApp {
             NODE_1_2_FEE_RATE,
         )
         .await?;
+        self.ensure_bidirectional_liquidity(&raw_1.config, &raw_2.config, &raw_2.node_info.pubkey)
+            .await?;
 
         self.ensure_ready_channel(
             &raw_2.config,
@@ -237,6 +240,8 @@ impl DemoApp {
             NODE_2_3_FEE_RATE,
         )
         .await?;
+        self.ensure_bidirectional_liquidity(&raw_2.config, &raw_3.config, &raw_3.node_info.pubkey)
+            .await?;
 
         self.wait_for_graph_visibility(&raw_1.config, 2).await?;
 
@@ -472,6 +477,98 @@ impl DemoApp {
         }
 
         bail!("graph_channels on {} did not show enough channels", node.id);
+    }
+
+    async fn ensure_bidirectional_liquidity(
+        &self,
+        source: &NodeConfig,
+        target: &NodeConfig,
+        target_pubkey: &str,
+    ) -> Result<()> {
+        let source_pubkey = self.fetch_raw_node(source).await?.node_info.pubkey;
+        let current_balance = self
+            .channel_local_balance(target, &source_pubkey)
+            .await?
+            .unwrap_or_default();
+
+        if current_balance >= MIN_BIDIRECTIONAL_LIQUIDITY {
+            return Ok(());
+        }
+
+        let top_up_amount = MIN_BIDIRECTIONAL_LIQUIDITY - current_balance;
+        info!(
+            "seeding reverse liquidity on {} <-> {} with {} shannons",
+            source.id, target.id, top_up_amount
+        );
+
+        self.rpc_call::<FiberPayment>(
+            &source.rpc_url,
+            "send_payment",
+            Some(json!({
+                "target_pubkey": target_pubkey,
+                "amount": to_hex_u128(top_up_amount),
+                "keysend": true,
+                "timeout": to_hex_u64(SEND_TIMEOUT_SECS),
+            })),
+        )
+        .await
+        .with_context(|| {
+            format!(
+                "failed to seed reverse liquidity for {} -> {}",
+                source.id, target.id
+            )
+        })?;
+
+        self.wait_for_local_balance(target, &source_pubkey, MIN_BIDIRECTIONAL_LIQUIDITY)
+            .await?;
+        Ok(())
+    }
+
+    async fn channel_local_balance(
+        &self,
+        node: &NodeConfig,
+        peer_pubkey: &str,
+    ) -> Result<Option<u128>> {
+        let response: FiberChannelsResponse = self
+            .rpc_call(
+                &node.rpc_url,
+                "list_channels",
+                Some(json!({ "pubkey": peer_pubkey })),
+            )
+            .await?;
+
+        response
+            .channels
+            .into_iter()
+            .next()
+            .map(|channel| channel.local_balance_u128())
+            .transpose()
+    }
+
+    async fn wait_for_local_balance(
+        &self,
+        node: &NodeConfig,
+        peer_pubkey: &str,
+        minimum_balance: u128,
+    ) -> Result<()> {
+        for _ in 0..20 {
+            if self
+                .channel_local_balance(node, peer_pubkey)
+                .await?
+                .unwrap_or_default()
+                >= minimum_balance
+            {
+                return Ok(());
+            }
+
+            sleep(Duration::from_secs(1)).await;
+        }
+
+        bail!(
+            "channel between {} and {peer_pubkey} did not reach local balance {} in time",
+            node.id,
+            minimum_balance
+        );
     }
 
     async fn generate_epochs(&self, epochs: u64) -> Result<()> {
@@ -853,6 +950,8 @@ struct FiberChannel {
     channel_id: String,
     pubkey: String,
     enabled: bool,
+    local_balance: String,
+    remote_balance: String,
     state: Value,
 }
 
@@ -867,6 +966,15 @@ impl FiberChannel {
 
     fn is_ready(&self) -> bool {
         self.state_name() == "ChannelReady"
+    }
+
+    fn local_balance_u128(&self) -> Result<u128> {
+        hex_to_u128(&self.local_balance)
+    }
+
+    #[allow(dead_code)]
+    fn remote_balance_u128(&self) -> Result<u128> {
+        hex_to_u128(&self.remote_balance)
     }
 }
 

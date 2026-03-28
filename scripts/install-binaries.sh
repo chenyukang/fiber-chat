@@ -7,6 +7,9 @@ project_dir="$(dirname "$script_dir")"
 bin_dir="${PROJECT_BIN_DIR:-$project_dir/bin}"
 force_reinstall="${FORCE_REINSTALL_BINARIES:-}"
 github_token="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+download_retry_count="${DOWNLOAD_RETRY_COUNT:-12}"
+download_retry_delay_seconds="${DOWNLOAD_RETRY_DELAY_SECONDS:-5}"
+download_connect_timeout_seconds="${DOWNLOAD_CONNECT_TIMEOUT_SECONDS:-60}"
 
 default_ckb_version="v0.205.0"
 default_ckb_cli_version="v2.0.0"
@@ -108,26 +111,32 @@ resolve_latest_release_tag_including_prereleases() {
 download_asset() {
   local url="$1"
   local output_path="$2"
+  local -a curl_args=(
+    -fL
+    --retry "$download_retry_count"
+    --retry-delay "$download_retry_delay_seconds"
+    --retry-all-errors
+    --connect-timeout "$download_connect_timeout_seconds"
+    -A "ckb-chat-installer"
+    -H "Accept: application/octet-stream"
+    -o "$output_path"
+  )
 
   rm -f "$output_path"
 
+  if [ -t 2 ]; then
+    curl_args+=(--progress-bar)
+  else
+    curl_args+=(-sS)
+  fi
+
   if [ -n "$github_token" ]; then
-    curl -fL --retry 8 --retry-delay 2 --retry-all-errors --connect-timeout 15 \
-      -A "ckb-chat-installer" \
-      -H "Authorization: Bearer $github_token" \
-      -H "Accept: application/octet-stream" \
-      -sS \
-      -o "$output_path" \
-      "$url"
+    curl_args+=(-H "Authorization: Bearer $github_token")
+    curl "${curl_args[@]}" "$url"
     return 0
   fi
 
-  curl -fL --retry 8 --retry-delay 2 --retry-all-errors --connect-timeout 15 \
-    -A "ckb-chat-installer" \
-    -H "Accept: application/octet-stream" \
-    -sS \
-    -o "$output_path" \
-    "$url"
+  curl "${curl_args[@]}" "$url"
 }
 
 download_asset_with_gh() {
@@ -207,6 +216,59 @@ verify_binary() {
     echo "Fiber official release currently only provides x86_64 macOS fnn. Please install Rosetta 2, or provide a native fnn manually." >&2
   fi
   return 1
+}
+
+existing_binary_is_usable() {
+  local binary_name="$1"
+  local binary_path="$2"
+
+  if [ ! -x "$binary_path" ]; then
+    return 1
+  fi
+
+  if "$binary_path" --version >/dev/null 2>&1; then
+    echo "using existing $binary_name: $binary_path"
+    return 0
+  fi
+
+  echo "existing $binary_name failed '$binary_path --version', reinstalling..." >&2
+  return 1
+}
+
+effective_binary_path() {
+  local binary_name="$1"
+  local preferred_path="$2"
+  local system_binary_path
+
+  if existing_binary_is_usable "$binary_name" "$preferred_path" >/dev/null 2>&1; then
+    printf '%s\n' "$preferred_path"
+    return 0
+  fi
+
+  system_binary_path="$(command_path "$binary_name")"
+  if [ -n "$system_binary_path" ]; then
+    printf '%s\n' "$system_binary_path"
+    return 0
+  fi
+
+  return 1
+}
+
+print_binary_summary() {
+  local binary_name="$1"
+  local preferred_path="$2"
+  local resolved_path
+
+  if ! resolved_path="$(effective_binary_path "$binary_name" "$preferred_path")"; then
+    echo "$binary_name -> missing"
+    return 1
+  fi
+
+  if [ "$resolved_path" = "$preferred_path" ]; then
+    ls -l "$resolved_path"
+  else
+    echo "$binary_name -> $resolved_path"
+  fi
 }
 
 ckb_asset_candidates() {
@@ -300,8 +362,7 @@ install_from_github_release() {
   local extract_dir
   local source_path
 
-  if [ -x "$target_path" ] && [ -z "$force_reinstall" ]; then
-    echo "using existing $(basename "$target_path"): $target_path"
+  if [ -z "$force_reinstall" ] && existing_binary_is_usable "$binary_name" "$target_path"; then
     return 0
   fi
 
@@ -372,8 +433,7 @@ install_or_use_system_binary() {
   local candidate_builder="$5"
   local system_binary_path
 
-  if [ -x "$target_path" ] && [ -z "$force_reinstall" ]; then
-    echo "using existing $(basename "$target_path"): $target_path"
+  if [ -z "$force_reinstall" ] && existing_binary_is_usable "$binary_name" "$target_path"; then
     return 0
   fi
 
@@ -423,4 +483,6 @@ install_from_github_release \
   fnn_asset_candidates
 
 echo "demo binaries are ready:"
-ls -l "$bin_dir/ckb" "$bin_dir/ckb-cli" "$bin_dir/fnn"
+print_binary_summary "ckb" "$bin_dir/ckb"
+print_binary_summary "ckb-cli" "$bin_dir/ckb-cli"
+print_binary_summary "fnn" "$bin_dir/fnn"
