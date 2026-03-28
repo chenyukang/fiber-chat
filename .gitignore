@@ -7,3 +7,7 @@ fnn
 store
 *.log
 target
+./bin/*
+./bin/ckb
+./bin/ckb-cli
+./bin/fnn

@@ -3,28 +3,54 @@ set -euo pipefail
 export SHELLOPTS
 
 export RUST_BACKTRACE=full
-export RUST_LOG="${RUST_LOG:-info,fnn=debug,fnn::cch::trackers::lnd_trackers=off,fnn::fiber::gossip=off,fnn::fiber::graph=off,fnn::utils::actor=off}"
+export RUST_LOG="${RUST_LOG:-info,fnn=debug,fnn::cch::trackers::lnd_trackers=off,fnn::fiber::gossip=off,fnn::fiber::graph=off,fnn::utils::actor=off,fnn::watchtower::actor=off}"
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 project_dir="$(dirname "$script_dir")"
+bin_dir="$project_dir/bin"
 bundle_dir="$project_dir/fiber-bundle"
 nodes_dir="$bundle_dir/nodes"
 deploy_dir="$bundle_dir/deploy"
-fnn_bin="${FNN_BINARY:-$project_dir/bin/fnn}"
+install_binaries_script="$script_dir/install-binaries.sh"
+fnn_bin="${FNN_BINARY:-$bin_dir/fnn}"
 should_remove_old_state="${REMOVE_OLD_STATE:-}"
 should_clean_fiber_state="${REMOVE_OLD_FIBER:-}"
 
-for command in ckb ckb-cli; do
-  if ! command -v "$command" >/dev/null 2>&1; then
-    echo "$command is required to run the local Fiber demo network" >&2
+fiber_logs_have_incompatible_database() {
+  rg -q "incompatible database|higher version fiber executable binary|need to upgrade fiber binary" \
+    "$nodes_dir" \
+    -g '*.log'
+}
+
+resolve_binary_path() {
+  local preferred_path="$1"
+  local command_name="$2"
+
+  if [ -x "$preferred_path" ]; then
+    printf '%s\n' "$preferred_path"
+    return 0
+  fi
+
+  command -v "$command_name" 2>/dev/null || true
+}
+
+if [ ! -f "$install_binaries_script" ]; then
+  echo "install script is missing: $install_binaries_script" >&2
+  exit 1
+fi
+
+bash "$install_binaries_script"
+export PATH="$bin_dir:$PATH"
+
+ckb_bin="$(resolve_binary_path "$bin_dir/ckb" ckb)"
+ckb_cli_bin="$(resolve_binary_path "$bin_dir/ckb-cli" ckb-cli)"
+
+for binary_path in "$ckb_bin" "$ckb_cli_bin" "$fnn_bin"; do
+  if [ -z "$binary_path" ] || [ ! -x "$binary_path" ]; then
+    echo "required binary is not executable: $binary_path" >&2
     exit 1
   fi
 done
-
-if [ ! -x "$fnn_bin" ]; then
-  echo "Fiber binary not found or not executable: $fnn_bin" >&2
-  exit 1
-fi
 
 # Fiber checks secret-key file permissions on startup.
 find "$nodes_dir" -path '*/fiber/sk' -exec chmod 600 {} + >/dev/null 2>&1 || true
@@ -53,7 +79,7 @@ fi
 echo "Initializing finished, begin to start services .... local bundle"
 sleep 1
 
-ckb run -C "$deploy_dir/node-data" --indexer &
+"$ckb_bin" run -C "$deploy_dir/node-data" --indexer &
 
 cd "$nodes_dir" || exit 1
 
@@ -74,6 +100,10 @@ initial_jobs=$(jobs -p | wc -l)
 while true; do
   current_jobs=$(jobs -p | wc -l)
   if [ "$current_jobs" -lt "$initial_jobs" ]; then
+    if fiber_logs_have_incompatible_database; then
+      echo "Detected an incompatible Fiber store version." >&2
+      echo "Re-run with REMOVE_OLD_FIBER=y ./scripts/start-fiber-network.sh to clear fiber-bundle/nodes/*/fiber/store." >&2
+    fi
     echo "A background job has exited, exiting ..."
     exit 1
   fi

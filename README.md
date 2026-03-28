@@ -12,26 +12,64 @@
 
 - `src/main.rs`: Rust 后端，负责 Fiber JSON-RPC 调用、轮询 payment 状态、准备 demo 网络、提供网页 API
 - `static/`: 单页前端
-- `bin/fnn`: 已拷贝到项目内的 Fiber 节点二进制
+- `bin/`: 项目内使用的 `ckb`、`ckb-cli`、`fnn` 二进制目录
 - `fiber-bundle/`: 已拷贝到项目内的 Fiber 节点配置、密钥和 dev-chain 依赖
+- `scripts/install-binaries.sh`: 一键安装项目运行需要的二进制
 - `scripts/start-fiber-network.sh`: 使用项目内 bundle 启动 3 个参考节点
 
 ## 运行
 
-1. 启动 Fiber 参考网络
+1. 一键启动 Fiber 网络和 demo 服务
+
+```bash
+cd /Users/yukang/code/ckb-chat
+./start.sh
+```
+
+这个根目录脚本会先启动 `./scripts/start-fiber-network.sh`，等本地 Fiber 网络关键端口 ready 之后，再自动执行 `cargo run`，并在 HTTP 服务 ready 后自动调用一次 `/api/prepare`，把 channel 和 liquidity 准备好。
+如果 `3000`、`8114`、`8343-8346`、`21713-21716` 这些端口已被占用，脚本会先列出占用进程并询问你是否要 kill 掉再继续。
+如果当前 `fiber/store` 是由更高版本的 `fnn` 创建的，脚本也会提示你是否清理 `fiber-bundle/nodes/*/fiber/store` 后自动重试。
+
+2. 如果你只想单独启动 Fiber 参考网络
 
 ```bash
 cd /Users/yukang/code/ckb-chat
 ./scripts/start-fiber-network.sh
 ```
 
-这个脚本会直接使用当前项目里的这些文件:
+这个脚本启动前会先执行 `./scripts/install-binaries.sh`，从官方 GitHub release 下载适合当前系统的二进制到项目里的 `bin/`。默认固定版本是:
 
+- `ckb`: `nervosnetwork/ckb` `v0.205.0`
+- `ckb-cli`: `nervosnetwork/ckb-cli` `v2.0.0`
+- `fnn`: 默认会解析 `nervosnetwork/fiber` 最新发布版本，包含 rc / prerelease；我现在核对到的是 `v0.8.0-rc1`
+
+下载默认走 GitHub release 直链；如果 `curl` 在下载阶段偶发失败，脚本会自动尝试用本机 `gh release download` 兜底。
+如果你本机 `PATH` 里已经有 `ckb` 或 `ckb-cli`，安装脚本会直接复用本机命令，不再下载；只有显式设置 `FORCE_REINSTALL_BINARIES=y` 时才会强制下载安装到项目 `bin/`。
+在 macOS 上，`fnn` 默认直接使用官方 `x86_64-darwin-portable` 包，不会再先尝试一个不存在的 `aarch64-darwin` 资产。
+
+如果你想单独执行安装，也可以直接跑:
+
+```bash
+cd /Users/yukang/code/ckb-chat
+./scripts/install-binaries.sh
+```
+
+如果你需要覆盖默认版本，可以在执行前设置这些环境变量:
+
+- `CKB_VERSION`
+- `CKB_CLI_VERSION`
+- `FNN_VERSION`
+- `GITHUB_TOKEN` 或 `GH_TOKEN`
+
+启动脚本之后会直接使用当前项目里的这些文件:
+
+- `bin/ckb`
+- `bin/ckb-cli`
 - `bin/fnn`
 - `fiber-bundle/nodes/*`
 - `fiber-bundle/deploy/*`
 
-不再依赖外部 `/Users/yukang/code/fiber/tests/nodes` 目录。
+补充一点：截至 2026 年 3 月，Fiber 官方 release 还没有 `aarch64-apple-darwin` 的 `fnn`，所以在 Apple Silicon 上安装脚本会回退到官方提供的 `x86_64-darwin-portable` 包。如果你的机器没有 Rosetta 2，脚本会在校验阶段报错并停止。
 
 如果你想强制重建本地 dev chain，可以这样启动:
 
@@ -39,20 +77,20 @@ cd /Users/yukang/code/ckb-chat
 REMOVE_OLD_STATE=y ./scripts/start-fiber-network.sh
 ```
 
-2. 另开一个终端，启动 demo 服务
+3. 如果你想单独启动 demo 服务
 
 ```bash
 cd /Users/yukang/code/ckb-chat
 cargo run
 ```
 
-3. 打开浏览器
+4. 打开浏览器
 
 ```text
 http://127.0.0.1:3000
 ```
 
-4. 点击页面上的 `Prepare Demo Network`
+5. 点击页面上的 `Prepare Demo Network`
 
 它会自动做这些事:
 

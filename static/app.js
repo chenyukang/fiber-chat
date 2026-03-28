@@ -195,9 +195,6 @@ function routeButton(label, subtitle, route, isActive) {
 
 function renderRouteNav(nodes, route) {
   routeNav.innerHTML = "";
-  routeNav.append(
-    routeButton("system", "global", { kind: "system", nodeId: null }, route.kind === "system"),
-  );
 
   nodes.forEach((node) => {
     routeNav.append(
@@ -209,6 +206,10 @@ function renderRouteNav(nodes, route) {
       ),
     );
   });
+
+  routeNav.append(
+    routeButton("system", "global", { kind: "system", nodeId: null }, route.kind === "system"),
+  );
 }
 
 function renderNodes(nodes, route) {
