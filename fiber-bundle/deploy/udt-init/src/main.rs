@@ -250,14 +250,6 @@ fn create_node_config(
     config["rpc"]["listening_addr"] = serde_yaml::Value::String(format!("127.0.0.1:{}", rpc_port));
     config["ckb"]["udt_whitelist"] = serde_yaml::to_value(udt_infos).unwrap();
 
-    // Node 3 acts as a CCH node (in-process mode)
-    if node_index == 3 {
-        config["services"]
-            .as_sequence_mut()
-            .unwrap()
-            .push(serde_yaml::Value::String("cch".to_string()));
-    }
-
     // Node 4 (cch) is a standalone CCH service connecting to node 3 via RPC
     if node_index == 4 {
         // Remove fiber and ckb sections — CCH-only node doesn't run these
