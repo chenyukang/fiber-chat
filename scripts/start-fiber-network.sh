@@ -3,7 +3,7 @@ set -euo pipefail
 export SHELLOPTS
 
 export RUST_BACKTRACE=full
-export RUST_LOG="${RUST_LOG:-info,fnn=debug,fnn::cch::trackers::lnd_trackers=off,fnn::fiber::gossip=off,fnn::fiber::graph=off,fnn::utils::actor=off,fnn::watchtower::actor=off}"
+export RUST_LOG="${RUST_LOG:-info,fnn=info,fnn::cch::trackers::lnd_trackers=off,fnn::fiber::gossip=off,fnn::fiber::graph=off,fnn::utils::actor=off,fnn::watchtower::actor=off,fnn::fiber::channel=warn,fnn::fiber::in_flight_ckb_tx_actor=warn,fnn::ckb::actor=warn}"
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 project_dir="$(dirname "$script_dir")"
@@ -156,9 +156,13 @@ ensure_ckb_ready
 cd "$nodes_dir" || exit 1
 
 start_fnn() {
-  log_file="${2}.log"
+  local log_file="${2}.log"
   echo "logging to ${log_file}"
-  "$fnn_bin" "$@" 2>&1 | tee "$log_file"
+  if [ -n "${FNN_TEE_STDOUT:-}" ]; then
+    "$fnn_bin" "$@" 2>&1 | tee "$log_file"
+  else
+    "$fnn_bin" "$@" >"$log_file" 2>&1
+  fi
 }
 
 FIBER_SECRET_KEY_PASSWORD='password0' LOG_PREFIX=$'[boot node]' start_fnn -d bootnode &
@@ -182,7 +186,8 @@ while true; do
       echo "Detected an incompatible Fiber store version." >&2
       echo "Re-run with REMOVE_OLD_FIBER=y ./scripts/start-fiber-network.sh to clear fiber-bundle/nodes/*/fiber/store." >&2
     fi
-    echo "A background job has exited, exiting ..."
+    echo "A background job has exited, exiting ..." >&2
+    echo "See $nodes_dir/bootnode.log, $nodes_dir/1.log, $nodes_dir/2.log, $nodes_dir/3.log for details." >&2
     exit 1
   fi
   sleep 1

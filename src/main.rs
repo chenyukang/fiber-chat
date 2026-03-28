@@ -820,12 +820,23 @@ struct ChatMessage {
     to_node_id: String,
     to_node_label: String,
     route_hops: Vec<String>,
+    hop_count: usize,
+    hop_details: Vec<ChatRouteHop>,
     text: String,
     sent_at_ms: u64,
     payment_created_at_ms: u64,
     payment_updated_at_ms: u64,
     fee_shannons: String,
     failed_error: Option<String>,
+}
+
+#[derive(Clone, Serialize)]
+struct ChatRouteHop {
+    hop_index: usize,
+    from_node_id: String,
+    to_node_id: String,
+    channel_outpoint: String,
+    amount_shannons: String,
 }
 
 impl ChatMessage {
@@ -853,22 +864,62 @@ impl ChatMessage {
             .get(&envelope.recipient_pubkey)
             .cloned()
             .unwrap_or_else(|| envelope.recipient_id.clone());
-        let route_hops = payment
+        let route_nodes = payment
             .routers
             .first()
-            .map(|route| {
-                route
-                    .nodes
-                    .iter()
-                    .map(|node| {
+            .map(|route| route.nodes.clone())
+            .unwrap_or_default();
+
+        let mut route_hops = if route_nodes.is_empty() {
+            vec![sender_node.clone(), recipient_node.clone()]
+        } else {
+            route_nodes
+                .iter()
+                .map(|node| {
+                    pubkey_to_id
+                        .get(&node.pubkey)
+                        .cloned()
+                        .unwrap_or_else(|| short_pubkey(&node.pubkey))
+                })
+                .collect::<Vec<_>>()
+        };
+        if route_hops.first() != Some(&sender_node) {
+            route_hops.insert(0, sender_node.clone());
+        }
+        if route_hops.last() != Some(&recipient_node) {
+            route_hops.push(recipient_node.clone());
+        }
+
+        let hop_details = route_nodes
+            .iter()
+            .enumerate()
+            .map(|(index, node)| {
+                let from_node_id = pubkey_to_id
+                    .get(&node.pubkey)
+                    .cloned()
+                    .unwrap_or_else(|| short_pubkey(&node.pubkey));
+                let to_node_id = route_nodes
+                    .get(index + 1)
+                    .map(|next| {
                         pubkey_to_id
-                            .get(&node.pubkey)
+                            .get(&next.pubkey)
                             .cloned()
-                            .unwrap_or_else(|| short_pubkey(&node.pubkey))
+                            .unwrap_or_else(|| short_pubkey(&next.pubkey))
                     })
-                    .collect::<Vec<_>>()
+                    .unwrap_or_else(|| recipient_node.clone());
+
+                Some(ChatRouteHop {
+                    hop_index: index + 1,
+                    from_node_id,
+                    to_node_id,
+                    channel_outpoint: node.channel_outpoint.clone(),
+                    amount_shannons: hex_to_u128(&node.amount)
+                        .map(|amount| amount.to_string())
+                        .unwrap_or_else(|_| node.amount.clone()),
+                })
             })
-            .unwrap_or_else(|| vec![sender_node.clone(), recipient_node.clone()]);
+            .collect::<Option<Vec<_>>>()?;
+        let hop_count = route_hops.len().saturating_sub(1);
 
         Some(Self {
             payment_hash: payment.payment_hash.clone(),
@@ -878,6 +929,8 @@ impl ChatMessage {
             to_node_id: recipient_node,
             to_node_label: envelope.recipient_label,
             route_hops,
+            hop_count,
+            hop_details,
             text: envelope.text,
             sent_at_ms: envelope.sent_at_ms,
             payment_created_at_ms: hex_to_u64(&payment.created_at).ok()?,
@@ -1015,6 +1068,8 @@ struct FiberSessionRoute {
 #[derive(Clone, Deserialize)]
 struct FiberRouteNode {
     pubkey: String,
+    amount: String,
+    channel_outpoint: String,
 }
 
 #[derive(Debug)]

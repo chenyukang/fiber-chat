@@ -46,6 +46,17 @@ require_command lsof
 require_command rg
 require_command curl
 
+print_success_banner() {
+  local message="$1"
+  local border="========================================"
+
+  if [ -t 1 ]; then
+    printf '\n\033[1;32m%s\n%s\n%s\033[0m\n' "$border" "$message" "$border"
+  else
+    printf '\n%s\n%s\n%s\n' "$border" "$message" "$border"
+  fi
+}
+
 cleanup() {
   local exit_code=$?
   trap - EXIT INT TERM
@@ -174,6 +185,12 @@ EOF
 
   echo "Ports are still occupied after attempting to kill the listener processes." >&2
   return 1
+}
+
+# Backward-compatible alias for older local copies/logs that may still call the
+# misspelled helper name during startup.
+re_startup_ports_available() {
+  ensure_startup_ports_available "$@"
 }
 
 fiber_logs_have_incompatible_database() {
@@ -323,7 +340,7 @@ prepare_demo_network() {
   fi
 
   rm -f "$response_file"
-  echo "Demo network is ready for chat."
+  print_success_banner "Demo network is ready for chat. Open $demo_api_base"
 }
 
 if [ ! -f "$fiber_script" ]; then

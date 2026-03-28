@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
-set -xeuo pipefail
+set -euo pipefail
+
+if [ -n "${DEPLOY_DEBUG:-}" ]; then
+    set -x
+fi
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 data_dir="$script_dir/node-data"
@@ -21,7 +25,7 @@ ckb-cli() {
     env HOME="$data_dir" ckb-cli --url http://127.0.0.1:8114 "$@"
 }
 
-if ! (echo | ckb-cli account import --local-only --privkey-path "$miner_key_file"); then
+if ! (printf '\n\n' | ckb-cli account import --local-only --privkey-path "$miner_key_file"); then
     :
 fi
 

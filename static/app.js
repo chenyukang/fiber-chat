@@ -5,6 +5,7 @@ const state = {
   route: { kind: "system", nodeId: null },
   activePeerByNode: {},
   forceScrollNodeTimelineToBottom: false,
+  expandedMessages: {},
   threadReadAt: loadThreadReadAt(),
 };
 
@@ -55,6 +56,34 @@ function shortHash(value) {
   if (!value) return "unknown";
   if (value.length <= 18) return value;
   return `${value.slice(0, 10)}...${value.slice(-6)}`;
+}
+
+function formatIntegerString(value) {
+  if (!value) return "0";
+  if (!/^\d+$/.test(String(value))) return String(value);
+
+  const digits = String(value);
+  const chunks = [];
+  for (let index = digits.length; index > 0; index -= 3) {
+    chunks.unshift(digits.slice(Math.max(0, index - 3), index));
+  }
+  return chunks.join(",");
+}
+
+function messageRouteText(message) {
+  return message.route_hops.join(" -> ");
+}
+
+function isMessageExpanded(paymentHash) {
+  return Boolean(state.expandedMessages[paymentHash]);
+}
+
+function setMessageExpanded(paymentHash, expanded) {
+  if (expanded) {
+    state.expandedMessages[paymentHash] = true;
+    return;
+  }
+  delete state.expandedMessages[paymentHash];
 }
 
 function loadThreadReadAt() {
@@ -249,6 +278,76 @@ function renderNodes(nodes, route) {
   });
 }
 
+function renderHopList(container, message) {
+  container.innerHTML = "";
+
+  if (!Array.isArray(message.hop_details) || message.hop_details.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "message-hop-empty subtle";
+    empty.textContent = "当前 payment 没有返回可展开的 channel trace。";
+    container.append(empty);
+    return;
+  }
+
+  message.hop_details.forEach((hop) => {
+    const item = document.createElement("article");
+    item.className = "message-hop-row";
+
+    const title = document.createElement("p");
+    title.className = "message-hop-title";
+    title.textContent = `Hop ${hop.hop_index} · ${hop.from_node_id} -> ${hop.to_node_id}`;
+
+    const channel = document.createElement("p");
+    channel.className = "message-hop-channel message-code";
+    channel.textContent = `channel ${hop.channel_outpoint}`;
+
+    const amount = document.createElement("p");
+    amount.className = "message-hop-amount subtle";
+    amount.textContent = `amount ${formatIntegerString(hop.amount_shannons)} shannons`;
+
+    item.append(title, channel, amount);
+    container.append(item);
+  });
+}
+
+function buildMessageCard(message, options = {}) {
+  const { flow = "neutral", directionLabel = "" } = options;
+  const fragment = messageTemplate.content.cloneNode(true);
+  const root = fragment.querySelector(".message-card");
+  const expanded = isMessageExpanded(message.payment_hash);
+  const routeText = messageRouteText(message);
+
+  root.dataset.status = message.status.toLowerCase();
+  root.dataset.flow = flow;
+  root.dataset.expanded = String(expanded);
+
+  fragment.querySelector(".message-direction").textContent = directionLabel;
+  fragment.querySelector(".message-status").textContent = message.status;
+  fragment.querySelector(".message-body").textContent = message.text;
+  fragment.querySelector(".message-time").textContent = formatTimestamp(message.sent_at_ms);
+
+  const toggle = fragment.querySelector(".message-detail-toggle");
+  toggle.dataset.paymentHash = message.payment_hash;
+  toggle.setAttribute("aria-expanded", String(expanded));
+  toggle.textContent = expanded ? "Details" : "Details";
+
+  const details = fragment.querySelector(".message-details");
+  details.hidden = !expanded;
+  fragment.querySelector(".message-detail-route").textContent = routeText;
+  fragment.querySelector(".message-detail-fee").textContent =
+    `${formatIntegerString(message.fee_shannons)} shannons`;
+  fragment.querySelector(".message-detail-hash").textContent = message.payment_hash;
+  fragment.querySelector(".message-detail-hop-count").textContent = `${message.hop_count} hops`;
+  renderHopList(fragment.querySelector(".message-hop-list"), message);
+
+  const error = fragment.querySelector(".message-error");
+  const failedError = message.failed_error || "";
+  error.textContent = failedError;
+  error.hidden = failedError.length === 0;
+
+  return fragment;
+}
+
 function renderSystemMessages(messages) {
   systemTimeline.innerHTML = "";
   if (messages.length === 0) {
@@ -260,21 +359,12 @@ function renderSystemMessages(messages) {
   }
 
   messages.forEach((message) => {
-    const fragment = messageTemplate.content.cloneNode(true);
-    const root = fragment.querySelector(".message-card");
-    root.dataset.status = message.status.toLowerCase();
-    root.dataset.flow = "neutral";
-
-    fragment.querySelector(".message-direction").textContent =
-      `${message.from_node_label} → ${message.to_node_label}`;
-    fragment.querySelector(".message-route").textContent =
-      `Route: ${message.route_hops.join(" -> ")}`;
-    fragment.querySelector(".message-status").textContent = message.status;
-    fragment.querySelector(".message-body").textContent = message.text;
-    fragment.querySelector(".message-time").textContent = formatTimestamp(message.sent_at_ms);
-    fragment.querySelector(".message-hash").textContent = shortHash(message.payment_hash);
-    fragment.querySelector(".message-error").textContent = message.failed_error || "";
-    systemTimeline.append(fragment);
+    systemTimeline.append(
+      buildMessageCard(message, {
+        flow: "neutral",
+        directionLabel: `${message.from_node_label} → ${message.to_node_label}`,
+      }),
+    );
   });
 }
 
@@ -415,23 +505,13 @@ function renderNodeMessages(threadMessages, activeNode, activePeer, statePayload
   }
 
   displayMessages.forEach((message) => {
-    const fragment = messageTemplate.content.cloneNode(true);
-    const root = fragment.querySelector(".message-card");
     const isOutbound = message.from_node_id === activeNode.id;
-    root.dataset.status = message.status.toLowerCase();
-    root.dataset.flow = isOutbound ? "outbound" : "inbound";
-
-    fragment.querySelector(".message-direction").textContent = isOutbound
-      ? `发给 ${activePeer.label}`
-      : `收到来自 ${activePeer.label}`;
-    fragment.querySelector(".message-route").textContent =
-      `Route: ${message.route_hops.join(" -> ")}`;
-    fragment.querySelector(".message-status").textContent = message.status;
-    fragment.querySelector(".message-body").textContent = message.text;
-    fragment.querySelector(".message-time").textContent = formatTimestamp(message.sent_at_ms);
-    fragment.querySelector(".message-hash").textContent = shortHash(message.payment_hash);
-    fragment.querySelector(".message-error").textContent = message.failed_error || "";
-    nodeTimeline.append(fragment);
+    nodeTimeline.append(
+      buildMessageCard(message, {
+        flow: isOutbound ? "outbound" : "inbound",
+        directionLabel: isOutbound ? `发给 ${activePeer.label}` : `收到来自 ${activePeer.label}`,
+      }),
+    );
   });
 
   if (forceScroll || shouldStickToBottom || displayMessages.length <= 6) {
@@ -507,7 +587,7 @@ function render(statePayload) {
   renderSystemMessages(statePayload.messages);
 
   systemTimelineMeta.textContent =
-    `记录键 ${statePayload.record_key_hex} · ${statePayload.messages.length} messages · 最新消息在最上面`;
+    `记录键 ${statePayload.record_key_hex} · ${statePayload.messages.length} messages`;
 
   if (state.route.kind === "system") {
     systemView.hidden = false;
@@ -583,6 +663,18 @@ conversationList.addEventListener("click", (event) => {
   state.forceScrollNodeTimelineToBottom = true;
   render(state.apiState);
 });
+
+function handleMessageDetailToggle(event) {
+  const button = event.target.closest(".message-detail-toggle");
+  if (!button || !state.apiState) return;
+
+  const paymentHash = button.dataset.paymentHash;
+  setMessageExpanded(paymentHash, !isMessageExpanded(paymentHash));
+  render(state.apiState);
+}
+
+systemTimeline.addEventListener("click", handleMessageDetailToggle);
+nodeTimeline.addEventListener("click", handleMessageDetailToggle);
 
 nodeComposer.addEventListener("submit", async (event) => {
   event.preventDefault();

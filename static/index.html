@@ -45,7 +45,6 @@
         <div class="panel-head">
           <div>
             <h2>System View</h2>
-            <p class="subtle">这里只展示全网 timeline，不提供发消息入口。</p>
           </div>
           <p id="system-timeline-meta" class="subtle">等待聊天记录</p>
         </div>
@@ -149,11 +148,31 @@
           <p class="message-direction"></p>
           <span class="message-status"></span>
         </div>
-        <p class="message-route"></p>
         <p class="message-body"></p>
         <div class="message-meta">
           <span class="message-time"></span>
-          <span class="message-hash"></span>
+          <button class="message-detail-toggle" type="button"></button>
+        </div>
+        <div class="message-details" hidden>
+          <dl class="message-detail-grid">
+            <div>
+              <dt>Route</dt>
+              <dd class="message-detail-route message-code"></dd>
+            </div>
+            <div>
+              <dt>Fee</dt>
+              <dd class="message-detail-fee"></dd>
+            </div>
+            <div>
+              <dt>Payment Hash</dt>
+              <dd class="message-detail-hash message-code"></dd>
+            </div>
+            <div>
+              <dt>Hops</dt>
+              <dd class="message-detail-hop-count"></dd>
+            </div>
+          </dl>
+          <div class="message-hop-list"></div>
         </div>
         <p class="message-error subtle"></p>
       </article>

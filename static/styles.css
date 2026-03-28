@@ -378,13 +378,11 @@ textarea {
 }
 
 .message-direction,
-.message-route,
 .message-body,
 .conversation-preview {
   margin: 0;
 }
 
-.message-route,
 .conversation-preview {
   margin-top: 8px;
   color: var(--muted);
@@ -401,6 +399,99 @@ textarea {
   margin-top: 12px;
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.message-detail-toggle {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.message-detail-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.message-details {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  gap: 14px;
+}
+
+.message-details[hidden] {
+  display: none;
+}
+
+.message-detail-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.message-detail-grid div {
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.message-detail-grid dt,
+.message-detail-grid dd {
+  margin: 0;
+}
+
+.message-detail-grid dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.message-detail-grid dd {
+  margin-top: 6px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.message-code {
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.8rem;
+}
+
+.message-hop-list {
+  display: grid;
+  gap: 10px;
+}
+
+.message-hop-row {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.message-hop-title,
+.message-hop-channel,
+.message-hop-amount,
+.message-hop-empty {
+  margin: 0;
+}
+
+.message-hop-title {
+  font-weight: 700;
+}
+
+.message-hop-channel,
+.message-hop-amount {
+  margin-top: 6px;
 }
 
 .chat-panel {
@@ -566,8 +657,23 @@ textarea {
   font-size: 0.98rem;
 }
 
-.timeline-thread .message-route {
-  opacity: 0.9;
+.timeline-thread .message-meta {
+  gap: 10px;
+}
+
+.timeline-thread .message-details {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 18px;
+  padding: 14px;
+  border-top: 0;
+}
+
+.timeline-thread .message-detail-grid {
+  grid-template-columns: 1fr;
+}
+
+.timeline-thread .message-detail-toggle {
+  padding: 7px 11px;
 }
 
 .empty-state {
@@ -603,5 +709,9 @@ textarea {
 
   .timeline-thread .message-card {
     width: min(92%, 34rem);
+  }
+
+  .message-detail-grid {
+    grid-template-columns: 1fr;
   }
 }
