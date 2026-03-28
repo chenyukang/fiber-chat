@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fiber Chat Demo</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="orb orb-left"></div>
+    <div class="orb orb-right"></div>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">CKB Fiber Layer 2</p>
+        <h1>Fiber Chat Demo</h1>
+        <p class="hero-copy">
+          前端是网页聊天界面，底层消息会编码进 <code>send_payment.custom_records</code>，
+          再通过 Fiber 网络把消息送到目标节点。
+        </p>
+        <div class="hero-actions">
+          <button id="prepare-button" class="button button-strong">Prepare Demo Network</button>
+          <span id="prepare-status" class="subtle">等待节点上线</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Node Status</h2>
+          <p id="refresh-time" class="subtle">尚未刷新</p>
+        </div>
+        <div id="nodes" class="node-grid"></div>
+      </section>
+
+      <section class="panel route-panel">
+        <div class="panel-head route-head">
+          <div>
+            <h2>Routes</h2>
+            <p id="view-meta" class="subtle">切换到 system 观察页或者某个 node 的聊天页面。</p>
+          </div>
+          <nav id="route-nav" class="route-nav"></nav>
+        </div>
+      </section>
+
+      <section id="system-view" class="panel view-section">
+        <div class="panel-head">
+          <div>
+            <h2>System View</h2>
+            <p class="subtle">这里只展示全网 timeline，不提供发消息入口。</p>
+          </div>
+          <p id="system-timeline-meta" class="subtle">等待聊天记录</p>
+        </div>
+        <div id="system-timeline" class="timeline"></div>
+      </section>
+
+      <section id="node-view" class="panel chat-panel view-section" hidden>
+        <div class="panel-head">
+          <div>
+            <h2 id="chat-page-title">Node Chat Page</h2>
+            <p id="chat-page-meta" class="subtle">当前页面只展示这个 node 的聊天视角。</p>
+          </div>
+        </div>
+
+        <div class="chat-layout">
+          <aside class="chat-sidebar">
+            <section class="sidebar-card">
+              <div class="sidebar-head">
+                <h3>Conversations</h3>
+                <p id="conversation-count" class="subtle">0 chats</p>
+              </div>
+              <div id="conversation-list" class="conversation-list"></div>
+            </section>
+          </aside>
+
+          <section class="chat-stage">
+            <div class="chat-stage-head">
+              <div>
+                <p id="chat-peer-label" class="chat-peer-label">选择一个会话</p>
+              </div>
+              <p id="node-timeline-meta" class="subtle">等待聊天记录</p>
+            </div>
+
+            <div id="node-timeline" class="timeline timeline-thread"></div>
+
+            <form id="node-composer" class="composer">
+              <label class="message-field">
+                <span>Message</span>
+                <textarea
+                  id="node-message"
+                  name="message"
+                  rows="5"
+                  maxlength="500"
+                  placeholder="以当前 node 的身份发一条消息。"
+                ></textarea>
+              </label>
+              <div class="composer-footer">
+                <p id="node-send-status" class="subtle">消息尚未发送</p>
+                <button id="node-send-button" type="submit" class="button">Send Via Fiber</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <template id="node-template">
+      <article class="node-card">
+        <div class="node-top">
+          <div>
+            <p class="node-label"></p>
+            <p class="node-id"></p>
+          </div>
+          <span class="badge"></span>
+        </div>
+        <dl class="stats">
+          <div>
+            <dt>Peers</dt>
+            <dd class="peers-count"></dd>
+          </div>
+          <div>
+            <dt>Ready Channels</dt>
+            <dd class="ready-count"></dd>
+          </div>
+        </dl>
+        <p class="pubkey"></p>
+        <ul class="channel-list"></ul>
+        <p class="node-error subtle"></p>
+      </article>
+    </template>
+
+    <template id="conversation-template">
+      <button class="conversation-item" type="button">
+        <div class="conversation-avatar"></div>
+        <div class="conversation-content">
+          <div class="conversation-top">
+            <p class="conversation-peer"></p>
+            <div class="conversation-meta">
+              <span class="conversation-time"></span>
+              <span class="conversation-badge" hidden></span>
+            </div>
+          </div>
+          <p class="conversation-preview"></p>
+        </div>
+      </button>
+    </template>
+
+    <template id="message-template">
+      <article class="message-card">
+        <div class="message-top">
+          <p class="message-direction"></p>
+          <span class="message-status"></span>
+        </div>
+        <p class="message-route"></p>
+        <p class="message-body"></p>
+        <div class="message-meta">
+          <span class="message-time"></span>
+          <span class="message-hash"></span>
+        </div>
+        <p class="message-error subtle"></p>
+      </article>
+    </template>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

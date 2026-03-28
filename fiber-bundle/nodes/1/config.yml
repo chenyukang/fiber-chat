@@ -1,0 +1,65 @@
+# this is generated from nodes/deployer/config.yml, any changes will not be checked in
+# you can edit nodes/deployer/config.yml and run `REMOVE_OLD_STATE=y ./tests/nodes/start.sh TESTCASE` to regenerate
+
+fiber:
+  chain: dev.toml
+  auto_announce_node: true
+  announce_private_addr: true
+  watchtower_check_interval_seconds: 1
+  gossip_store_maintenance_interval_ms: 1000
+  gossip_network_maintenance_interval_ms: 1000
+  listening_addr: /ip4/0.0.0.0/tcp/8344
+  announced_addrs:
+  - /ip4/127.0.0.1/tcp/8344
+  announced_node_name: fiber-1
+rpc:
+  listening_addr: 127.0.0.1:21714
+  enabled_modules:
+  - cch
+  - channel
+  - payment
+  - graph
+  - info
+  - invoice
+  - peer
+  - pubsub
+  - watchtower
+  - dev
+  - prof
+cch:
+  ignore_startup_failure: true
+  wrapped_btc_type_script_args: 0x32e555f3ff8e135cece1351a6a2971518392c1e30375c1e006ad0ce8eac07947
+  lnd_cert_path: ../../deploy/lnd-init/lnd-ingrid/tls.cert
+ckb:
+  tx_tracing_polling_interval_ms: 300
+  udt_whitelist:
+  - name: SIMPLE_UDT
+    script:
+      code_hash: 0xe1e354d6d643ad42724d40967e334984534e0367405c5ae42a9d7d63d77df419
+      hash_type: Data2
+      args: 0x.*
+    auto_accept_amount: 1000
+    cell_deps:
+    - cell_dep:
+        out_point:
+          tx_hash: 0xcfcbbe3426fc724b308b2cdb1177c26dd242e6f871b099eec86478ef8825ebd8
+          index: '0x8'
+        dep_type: code
+      type_id: null
+  - name: XUDT
+    script:
+      code_hash: 0x50bd8d6680b8b9cf98b73f3c08faf8b2a21914311954118ad6609be6e78a1b95
+      hash_type: Data2
+      args: 0x.*
+    auto_accept_amount: 1000
+    cell_deps:
+    - cell_dep:
+        out_point:
+          tx_hash: 0xcfcbbe3426fc724b308b2cdb1177c26dd242e6f871b099eec86478ef8825ebd8
+          index: '0x9'
+        dep_type: code
+      type_id: null
+services:
+- fiber
+- rpc
+- ckb

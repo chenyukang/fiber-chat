@@ -1,0 +1,9 @@
+/target
+/fiber-bundle/deploy/node-data
+/fiber-bundle/nodes/*.log
+/fiber-bundle/nodes/*/fiber/store
+/fiber-bundle/nodes/*/fiber/store/**
+fnn
+store
+*.log
+target
