@@ -3,7 +3,7 @@ set -euo pipefail
 export SHELLOPTS
 
 export RUST_BACKTRACE=full
-export RUST_LOG="${RUST_LOG:-info,fnn=info,fnn::cch::trackers::lnd_trackers=off,fnn::fiber::gossip=off,fnn::fiber::graph=off,fnn::utils::actor=off,fnn::watchtower::actor=off,fnn::fiber::channel=warn,fnn::fiber::in_flight_ckb_tx_actor=warn,fnn::ckb::actor=warn}"
+export RUST_LOG="${RUST_LOG:-info,fnn=info,fnn::fiber::gossip=off,fnn::fiber::graph=off,fnn::utils::actor=off,fnn::watchtower::actor=off,fnn::fiber::channel=warn,fnn::fiber::in_flight_ckb_tx_actor=warn,fnn::ckb::actor=warn}"
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 project_dir="$(dirname "$script_dir")"

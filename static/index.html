@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,19 +14,19 @@
         <p class="eyebrow">CKB Fiber Layer 2</p>
         <h1>Fiber Chat Demo</h1>
         <p class="hero-copy">
-          前端是网页聊天界面，底层消息会编码进 <code>send_payment.custom_records</code>，
-          再通过 Fiber 网络把消息送到目标节点。
+          The frontend is a web chat UI. Each message is encoded into
+          <code>send_payment.custom_records</code> and delivered through the Fiber network.
         </p>
         <div class="hero-actions">
           <button id="prepare-button" class="button button-strong">Prepare Demo Network</button>
-          <span id="prepare-status" class="subtle">等待节点上线</span>
+          <span id="prepare-status" class="subtle">Waiting for nodes to come online</span>
         </div>
       </section>
 
       <section class="panel">
         <div class="panel-head">
           <h2>Node Status</h2>
-          <p id="refresh-time" class="subtle">尚未刷新</p>
+          <p id="refresh-time" class="subtle">Not refreshed yet</p>
         </div>
         <div id="nodes" class="node-grid"></div>
       </section>
@@ -35,7 +35,7 @@
         <div class="panel-head route-head">
           <div>
             <h2>Routes</h2>
-            <p id="view-meta" class="subtle">切换到 system 观察页或者某个 node 的聊天页面。</p>
+            <p id="view-meta" class="subtle">Switch between the system observer view and each node chat page.</p>
           </div>
           <nav id="route-nav" class="route-nav"></nav>
         </div>
@@ -46,7 +46,7 @@
           <div>
             <h2>System View</h2>
           </div>
-          <p id="system-timeline-meta" class="subtle">等待聊天记录</p>
+          <p id="system-timeline-meta" class="subtle">Waiting for chat history</p>
         </div>
         <div id="system-timeline" class="timeline"></div>
       </section>
@@ -55,7 +55,7 @@
         <div class="panel-head">
           <div>
             <h2 id="chat-page-title">Node Chat Page</h2>
-            <p id="chat-page-meta" class="subtle">当前页面只展示这个 node 的聊天视角。</p>
+            <p id="chat-page-meta" class="subtle">This page only shows the chat perspective of the current node.</p>
           </div>
         </div>
 
@@ -73,9 +73,9 @@
           <section class="chat-stage">
             <div class="chat-stage-head">
               <div>
-                <p id="chat-peer-label" class="chat-peer-label">选择一个会话</p>
+                <p id="chat-peer-label" class="chat-peer-label">Select a conversation</p>
               </div>
-              <p id="node-timeline-meta" class="subtle">等待聊天记录</p>
+              <p id="node-timeline-meta" class="subtle">Waiting for chat history</p>
             </div>
 
             <div id="node-timeline" class="timeline timeline-thread"></div>
@@ -88,11 +88,11 @@
                   name="message"
                   rows="5"
                   maxlength="500"
-                  placeholder="以当前 node 的身份发一条消息。"
+                  placeholder="Send a message as the current node."
                 ></textarea>
               </label>
               <div class="composer-footer">
-                <p id="node-send-status" class="subtle">消息尚未发送</p>
+                <p id="node-send-status" class="subtle">No message has been sent yet</p>
                 <button id="node-send-button" type="submit" class="button">Send Via Fiber</button>
               </div>
             </form>

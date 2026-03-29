@@ -4,6 +4,7 @@ const state = {
   apiState: null,
   route: { kind: "system", nodeId: null },
   activePeerByNode: {},
+  composerStatusByNode: {},
   forceScrollNodeTimelineToBottom: false,
   expandedMessages: {},
   threadReadAt: loadThreadReadAt(),
@@ -86,6 +87,15 @@ function setMessageExpanded(paymentHash, expanded) {
   delete state.expandedMessages[paymentHash];
 }
 
+function defaultComposerStatus(activePeer) {
+  return activePeer ? "No message has been sent yet" : "Select a conversation to start chatting";
+}
+
+function getComposerStatus(nodeId, activePeer) {
+  if (!nodeId) return defaultComposerStatus(activePeer);
+  return state.composerStatusByNode[nodeId] || defaultComposerStatus(activePeer);
+}
+
 function loadThreadReadAt() {
   try {
     const raw = window.localStorage.getItem(THREAD_READ_STATE_STORAGE_KEY);
@@ -131,7 +141,7 @@ function markThreadRead(nodeId, peerId, messages) {
 
 function formatTimestamp(ms) {
   if (!ms) return "unknown time";
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -262,7 +272,7 @@ function renderNodes(nodes, route) {
     const channelList = fragment.querySelector(".channel-list");
     if (node.channels.length === 0) {
       const empty = document.createElement("li");
-      empty.textContent = "还没有看到可用 channel";
+      empty.textContent = "No available channel yet";
       channelList.append(empty);
     } else {
       node.channels.forEach((channel) => {
@@ -284,7 +294,7 @@ function renderHopList(container, message) {
   if (!Array.isArray(message.hop_details) || message.hop_details.length === 0) {
     const empty = document.createElement("p");
     empty.className = "message-hop-empty subtle";
-    empty.textContent = "当前 payment 没有返回可展开的 channel trace。";
+    empty.textContent = "This payment did not return an expandable channel trace.";
     container.append(empty);
     return;
   }
@@ -329,7 +339,7 @@ function buildMessageCard(message, options = {}) {
   const toggle = fragment.querySelector(".message-detail-toggle");
   toggle.dataset.paymentHash = message.payment_hash;
   toggle.setAttribute("aria-expanded", String(expanded));
-  toggle.textContent = expanded ? "Details" : "Details";
+  toggle.textContent = expanded ? "Hide Fiber Details" : "Show Fiber Details";
 
   const details = fragment.querySelector(".message-details");
   details.hidden = !expanded;
@@ -353,7 +363,7 @@ function renderSystemMessages(messages) {
   if (messages.length === 0) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
-    empty.textContent = "还没有聊天消息。先准备网络，再发第一条消息。";
+    empty.textContent = "No chat messages yet. Prepare the network and send the first message.";
     systemTimeline.append(empty);
     return;
   }
@@ -404,10 +414,10 @@ function buildThreads(nodes, messages, activeNodeId) {
 
 function conversationPreview(thread, activeNodeId) {
   if (!thread.lastMessage) {
-    return "还没有消息，发第一条试试。";
+    return "No messages yet. Send the first one.";
   }
   if (thread.lastMessage.from_node_id === activeNodeId) {
-    return `你: ${thread.lastMessage.text}`;
+    return `You: ${thread.lastMessage.text}`;
   }
   return `${thread.peer.label}: ${thread.lastMessage.text}`;
 }
@@ -465,7 +475,7 @@ function renderConversationList(threads, activeNode, activePeerId) {
   if (threads.length === 0) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
-    empty.textContent = "没有可聊天的 peer。";
+    empty.textContent = "No chat peers available.";
     conversationList.append(empty);
   }
 }
@@ -481,10 +491,10 @@ function renderNodeMessages(threadMessages, activeNode, activePeer, statePayload
   if (!activePeer) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
-    empty.textContent = "先选择一个会话。";
+    empty.textContent = "Select a conversation first.";
     nodeTimeline.append(empty);
-    chatPeerLabel.textContent = "选择一个会话";
-    nodeTimelineMeta.textContent = "等待聊天记录";
+    chatPeerLabel.textContent = "Select a conversation";
+    nodeTimelineMeta.textContent = "Waiting for chat history";
     return;
   }
 
@@ -494,12 +504,12 @@ function renderNodeMessages(threadMessages, activeNode, activePeer, statePayload
 
   chatPeerLabel.textContent = `${activeNode.label} ↔ ${activePeer.label}`;
   nodeTimelineMeta.textContent =
-    `记录键 ${statePayload.record_key_hex} · ${displayMessages.length} messages`;
+    `Record key ${statePayload.record_key_hex} · ${displayMessages.length} messages`;
 
   if (displayMessages.length === 0) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
-    empty.textContent = `${activeNode.label} 和 ${activePeer.label} 还没有聊天记录。`;
+    empty.textContent = `No chat history yet between ${activeNode.label} and ${activePeer.label}.`;
     nodeTimeline.append(empty);
     return;
   }
@@ -509,7 +519,7 @@ function renderNodeMessages(threadMessages, activeNode, activePeer, statePayload
     nodeTimeline.append(
       buildMessageCard(message, {
         flow: isOutbound ? "outbound" : "inbound",
-        directionLabel: isOutbound ? `发给 ${activePeer.label}` : `收到来自 ${activePeer.label}`,
+        directionLabel: isOutbound ? `Sent to ${activePeer.label}` : `Received from ${activePeer.label}`,
       }),
     );
   });
@@ -523,14 +533,15 @@ function renderNodeComposer(activeNode, activePeer) {
   const disabled = !activeNode || !activePeer;
   nodeMessage.disabled = disabled;
   nodeSendButton.disabled = disabled;
+  nodeSendStatus.textContent = getComposerStatus(activeNode?.id, activePeer);
 
   if (disabled) {
-    nodeMessage.placeholder = "先选择一个会话";
+    nodeMessage.placeholder = "Select a conversation first";
     nodeSendButton.textContent = "Send Via Fiber";
     return;
   }
 
-  nodeMessage.placeholder = `以 ${activeNode.label} 的身份给 ${activePeer.label} 发一条消息。`;
+  nodeMessage.placeholder = `Send a message as ${activeNode.label} to ${activePeer.label}.`;
   nodeSendButton.textContent = `Send As ${activeNode.label}`;
 }
 
@@ -561,7 +572,7 @@ function renderNodeView(nodes, messages, route, statePayload) {
   }));
 
   chatPageTitle.textContent = `${activeNode.label} Chat Page`;
-  chatPageMeta.textContent = `当前路由 ${canonicalPath(route)} · 全局视角统一走 /system。`;
+  chatPageMeta.textContent = `Current route ${canonicalPath(route)}`;
 
   renderConversationList(threadsWithUnread, activeNode, activePeer?.id);
   renderNodeMessages(threadMessages, activeNode, activePeer, statePayload);
@@ -587,31 +598,31 @@ function render(statePayload) {
   renderSystemMessages(statePayload.messages);
 
   systemTimelineMeta.textContent =
-    `记录键 ${statePayload.record_key_hex} · ${statePayload.messages.length} messages`;
+    `Record key ${statePayload.record_key_hex} · ${statePayload.messages.length} messages`;
 
   if (state.route.kind === "system") {
     systemView.hidden = false;
     nodeView.hidden = true;
-    viewMeta.textContent = "当前路由 /system，展示全网观察者视角。";
+    viewMeta.textContent = "Current route /system";
   } else {
     const activeNode = getNodeById(statePayload.nodes, state.route.nodeId);
     systemView.hidden = true;
     nodeView.hidden = false;
     viewMeta.textContent = activeNode
-      ? `当前路由 ${canonicalPath(state.route)}，已经进入 ${activeNode.label} 的聊天页面。`
-      : "当前是 node 聊天页面。";
+      ? `Current route ${canonicalPath(state.route)}.`
+      : "Current route is a node chat page.";
     renderNodeView(statePayload.nodes, statePayload.messages, state.route, statePayload);
   }
 
   setDocumentTitle(state.route, statePayload.nodes);
-  refreshTime.textContent = `最后刷新: ${formatTimestamp(statePayload.last_refresh_ms)}`;
+  refreshTime.textContent = `Last refresh: ${formatTimestamp(statePayload.last_refresh_ms)}`;
 }
 
 async function loadState() {
   try {
     const payload = await requestJson("/api/state");
     render(payload);
-    prepareStatus.textContent = "节点在线后可直接准备网络";
+    prepareStatus.textContent = "Prepare the network once the nodes are online";
   } catch (error) {
     prepareStatus.textContent = error.message;
   }
@@ -619,14 +630,14 @@ async function loadState() {
 
 prepareButton.addEventListener("click", async () => {
   prepareButton.disabled = true;
-  prepareStatus.textContent = "正在连 peer、开 channel、出块确认...";
+  prepareStatus.textContent = "Connecting peers, opening channels, and confirming funding...";
   try {
     const payload = await requestJson("/api/prepare", {
       method: "POST",
       body: JSON.stringify({}),
     });
     render(payload);
-    prepareStatus.textContent = "Demo network 已准备好，可以开始聊天";
+    prepareStatus.textContent = "The demo network is ready. You can start chatting.";
   } catch (error) {
     prepareStatus.textContent = error.message;
   } finally {
@@ -679,25 +690,30 @@ nodeTimeline.addEventListener("click", handleMessageDetailToggle);
 nodeComposer.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!state.apiState || state.route.kind !== "node" || !state.route.nodeId) return;
+  const activeNodeId = state.route.nodeId;
 
   const payload = {
-    sender_id: state.route.nodeId,
-    recipient_id: state.activePeerByNode[state.route.nodeId],
+    sender_id: activeNodeId,
+    recipient_id: state.activePeerByNode[activeNodeId],
     message: nodeMessage.value,
   };
 
-  nodeSendStatus.textContent = "消息发送中...";
+  state.composerStatusByNode[activeNodeId] = "Sending message...";
+  nodeSendStatus.textContent = state.composerStatusByNode[activeNodeId];
 
   try {
     const result = await requestJson("/api/send", {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    nodeSendStatus.textContent = `已发起 payment ${shortHash(result.payment_hash)} (${result.status})`;
+    state.composerStatusByNode[activeNodeId] =
+      `Payment ${shortHash(result.payment_hash)} started (${result.status})`;
+    nodeSendStatus.textContent = state.composerStatusByNode[activeNodeId];
     nodeMessage.value = "";
     await loadState();
   } catch (error) {
-    nodeSendStatus.textContent = error.message;
+    state.composerStatusByNode[activeNodeId] = error.message;
+    nodeSendStatus.textContent = state.composerStatusByNode[activeNodeId];
   }
 });
 

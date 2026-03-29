@@ -1,67 +1,49 @@
 # Fiber Chat Demo
 
-这是一个最小可跑的 demo:
+This is a minimal runnable demo:
 
-- 网页端是聊天界面
-- 后端是 Rust HTTP 服务
-- 底层消息通过 Fiber `send_payment` 的 `custom_records` 传输
+- The frontend is a web chat UI
+- The backend is a Rust HTTP service
+- Messages are transported through Fiber `send_payment.custom_records`
 
-消息体会被编码成 JSON，再塞进固定 record key `0xcafe`。每发一条消息，都会触发一笔 tiny keysend payment。
+Each chat message is encoded as JSON and written into the fixed record key `0xcafe`.
+Every message triggers a tiny keysend payment underneath.
 
-## 结构
+## Run
 
-- `src/main.rs`: Rust 后端，负责 Fiber JSON-RPC 调用、轮询 payment 状态、准备 demo 网络、提供网页 API
-- `static/`: 单页前端
-- `bin/`: 项目内使用的 `ckb`、`ckb-cli`、`fnn` 二进制目录
-- `fiber-bundle/`: 已拷贝到项目内的 Fiber 节点配置、密钥和 dev-chain 依赖
-- `scripts/install-binaries.sh`: 一键安装项目运行需要的二进制
-- `scripts/start-fiber-network.sh`: 使用项目内 bundle 启动 3 个参考节点
-
-## 运行
-
-1. 一键启动 Fiber 网络和 demo 服务
+1. Start the Fiber network and the demo service together
 
 ```bash
-cd /Users/yukang/code/ckb-chat
 ./start.sh
 ```
 
-这个根目录脚本会先启动 `./scripts/start-fiber-network.sh`，等本地 Fiber 网络关键端口 ready 之后，再自动执行 `cargo run`，并在 HTTP 服务 ready 后自动调用一次 `/api/prepare`，把 channel 和 liquidity 准备好。
-如果 `3000`、`8114`、`8343-8346`、`21713-21716` 这些端口已被占用，脚本会先列出占用进程并询问你是否要 kill 掉再继续。
-如果当前 `fiber/store` 是由更高版本的 `fnn` 创建的，脚本也会提示你是否清理 `fiber-bundle/nodes/*/fiber/store` 后自动重试。
+Then after it finishing, open the web UI at:
 
-2. 如果你只想单独启动 Fiber 参考网络
-
-```bash
-cd /Users/yukang/code/ckb-chat
-./scripts/start-fiber-network.sh
+```text
+http://127.0.0.1:3000
 ```
 
-这个脚本启动前会先执行 `./scripts/install-binaries.sh`，从官方 GitHub release 下载适合当前系统的二进制到项目里的 `bin/`。默认固定版本是:
-
-- `ckb`: `nervosnetwork/ckb` `v0.205.0`
-- `ckb-cli`: `nervosnetwork/ckb-cli` `v2.0.0`
-- `fnn`: 默认会解析 `nervosnetwork/fiber` 最新发布版本，包含 rc / prerelease；我现在核对到的是 `v0.8.0-rc1`
-
-下载默认走 GitHub release 直链；如果 `curl` 在下载阶段偶发失败，脚本会自动尝试用本机 `gh release download` 兜底。
-如果你本机 `PATH` 里已经有 `ckb` 或 `ckb-cli`，安装脚本会直接复用本机命令，不再下载；只有显式设置 `FORCE_REINSTALL_BINARIES=y` 时才会强制下载安装到项目 `bin/`。
-在 macOS 上，`fnn` 默认直接使用官方 `x86_64-darwin-portable` 包，不会再先尝试一个不存在的 `aarch64-darwin` 资产。
-
-如果你想单独执行安装，也可以直接跑:
+If `ckb` or `ckb-cli` already exist in your `PATH`, the installer reuses them instead of downloading new copies. It only forces reinstallation into `bin/` when you explicitly set:
 
 ```bash
-cd /Users/yukang/code/ckb-chat
+FORCE_REINSTALL_BINARIES=y
+```
+
+On macOS, `fnn` currently defaults to the official `x86_64-darwin-portable` package.
+
+You can also run the installer directly:
+
+```bash
 ./scripts/install-binaries.sh
 ```
 
-如果你需要覆盖默认版本，可以在执行前设置这些环境变量:
-
+Optional environment variables:
 - `CKB_VERSION`
 - `CKB_CLI_VERSION`
 - `FNN_VERSION`
-- `GITHUB_TOKEN` 或 `GH_TOKEN`
+- `GITHUB_TOKEN` or `GH_TOKEN`
 
-启动脚本之后会直接使用当前项目里的这些文件:
+Runtime uses these project-local paths:
 
 - `bin/ckb`
 - `bin/ckb-cli`
@@ -69,59 +51,54 @@ cd /Users/yukang/code/ckb-chat
 - `fiber-bundle/nodes/*`
 - `fiber-bundle/deploy/*`
 
-补充一点：截至 2026 年 3 月，Fiber 官方 release 还没有 `aarch64-apple-darwin` 的 `fnn`，所以在 Apple Silicon 上安装脚本会回退到官方提供的 `x86_64-darwin-portable` 包。如果你的机器没有 Rosetta 2，脚本会在校验阶段报错并停止。
-
-如果你想强制重建本地 dev chain，可以这样启动:
+If you want to fully rebuild the local dev chain:
 
 ```bash
 REMOVE_OLD_STATE=y ./scripts/start-fiber-network.sh
 ```
 
-3. 如果你想单独启动 demo 服务
+If you only want to clear Fiber store state:
 
 ```bash
-cd /Users/yukang/code/ckb-chat
-cargo run
+REMOVE_OLD_FIBER=y ./start.sh
 ```
 
-4. 打开浏览器
+## Prepare The Network
 
-```text
-http://127.0.0.1:3000
-```
+Click `Prepare Demo Network` in the UI.
 
-5. 点击页面上的 `Prepare Demo Network`
-
-它会自动做这些事:
+It will automatically:
 
 - `connect_peer`
 - `open_channel` for `node1 -> node2`
 - `open_channel` for `node2 -> node3`
-- `generate_epochs` 让 funding tx 确认
-- 等待 channel 进入 `ChannelReady`
+- generate epochs until funding transactions are confirmed
+- wait for channels to reach `ChannelReady`
+- seed reverse liquidity so both directions can chat
 
-准备好之后，可以用这些路由进入不同视角:
+Available routes:
+- `/system`: global observer page, shows the full network timeline and does not send messages
+- `/nodes/node1`: the node-specific chat page for `node1`
 
-- `/system`: 全局 system 页面，只展示全网 timeline，不提供发送入口
-- `/nodes/node1`: `node1` 自己的聊天页面
+`/system` keeps the global view, while `/nodes/<node-id>` only shows conversations relevant to that node.
 
-`system` 页面保留全局视角，`/nodes/<node-id>` 页面则只显示这个 node 自己相关的会话。
 
-## 当前取舍
+## Structure
 
-Fiber 现有公开 RPC 更偏向付款侧 session 视角，并没有直接暴露一个“收件箱”接口来读取接收方已经落库的 `custom_records`。所以这个 demo 采用了一个对本地三节点很实用的办法:
+- `src/main.rs`: Rust backend for Fiber JSON-RPC calls, payment polling, demo network preparation, and web APIs
+- `static/`: single-page frontend
+- `bin/`: project-local directory for `ckb`, `ckb-cli`, and `fnn`
+- `fiber-bundle/`: vendored Fiber node configs, keys, and dev-chain dependencies
+- `scripts/install-binaries.sh`: installs the binaries needed by this project
+- `scripts/start-fiber-network.sh`: starts the three reference nodes from the local bundle
 
-- 后端轮询每个本地节点的 `list_payments`
-- 只提取带 `0xcafe` record 的 payment
-- 以此还原聊天时间线
+## Current Tradeoff
 
-这意味着:
+Fiber's public RPC is still payment-session oriented and does not expose a direct inbox-style API for reading received `custom_records` from the receiver side.
 
-- 消息的真实承载仍然是 Fiber payment
-- `system` 页面展示的是“全局观察者视角”的聊天记录
-- `node` 页面是在前端按参与方过滤出的单节点视角
+So this demo uses a pragmatic local three-node approach:
 
-如果你后面想把它继续推进成真正的 per-node inbox，可以往两个方向扩展:
+- the backend polls `list_payments` on each local node
+- it extracts only payments carrying the `0xcafe` chat record
+- it reconstructs the chat timeline from those payment sessions
 
-- 给 Fiber 增加读取接收侧 `custom_records` 的 RPC
-- 或者给 demo 后端直接接 Fiber 本地 store

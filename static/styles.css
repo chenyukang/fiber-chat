@@ -582,6 +582,10 @@ textarea {
   box-shadow: 0 0 0 4px rgba(255, 178, 91, 0.12);
 }
 
+.conversation-badge[hidden] {
+  display: none;
+}
+
 .conversation-item[data-unread="true"] .conversation-peer,
 .conversation-item[data-unread="true"] .conversation-preview {
   color: var(--text);

@@ -1,8 +1,5 @@
 node("QmbvRjJHAQDmj3cgnUBGQ5zVnGxUKwb2qJygwNs2wk41h8");
 
-write("cch");
-read("cch");
-
 write("channels");
 read("channels");
 
