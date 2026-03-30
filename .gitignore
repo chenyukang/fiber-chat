@@ -11,3 +11,4 @@ target
 ./bin/ckb
 ./bin/ckb-cli
 ./bin/fnn
+.DS_Store

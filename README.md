@@ -9,6 +9,8 @@ This is a minimal runnable demo:
 Each chat message is encoded as JSON and written into the fixed record key `0xcafe`.
 Every message triggers a tiny keysend payment underneath.
 
+![static/fiber-chat.png](static/fiber-chat.png)
+
 ## Run
 
 1. Start the Fiber network and the demo service together
