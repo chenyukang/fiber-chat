@@ -1,6 +1,14 @@
 # Fiber Chat Demo
 
-This is a minimal runnable demo:
+This is a minimal runnable chat demo based on [Fiber Network](https://github.com/nervosnetwork/fiber).
+
+Fiber Network is a layer-2 protocol built on top of the Nervos CKB blockchain, enabling fast and secure off-chain transactions. This demo showcases how to use Fiber's payment sessions and custom records to implement a simple chat application.
+
+It is *decentralized* in the sense that each participant runs their own Fiber node, and messages are sent through netowrk's channels, it's safe since middle hops can not decode the inline messages within onion packets.
+
+However, for simplicity, this demo runs all nodes locally and uses a backend service to poll for messages.
+
+---
 
 - The frontend is a web chat UI
 - The backend is a Rust HTTP service
