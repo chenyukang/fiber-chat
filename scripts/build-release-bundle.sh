@@ -46,7 +46,7 @@ if [ ! -x "$binary_path" ]; then
 fi
 
 mkdir -p "$stage_dir/bin"
-install -Dm755 "$binary_path" "$stage_dir/bin/ckb-chat"
+install -m 755 "$binary_path" "$stage_dir/bin/ckb-chat"
 cp -R "$project_dir/static" "$stage_dir/static"
 cp -R "$project_dir/scripts" "$stage_dir/scripts"
 cp -R "$project_dir/fiber-bundle" "$stage_dir/fiber-bundle"
