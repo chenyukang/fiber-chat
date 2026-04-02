@@ -43,7 +43,6 @@ require_command() {
 }
 
 require_command lsof
-require_command rg
 require_command curl
 
 print_success_banner() {
@@ -194,9 +193,16 @@ re_startup_ports_available() {
 }
 
 fiber_logs_have_incompatible_database() {
-  rg -q "incompatible database|higher version fiber executable binary|need to upgrade fiber binary" \
-    "$fiber_nodes_dir" \
-    -g '*.log'
+  local pattern="incompatible database|higher version fiber executable binary|need to upgrade fiber binary"
+  local log_file
+
+  while IFS= read -r -d '' log_file; do
+    if grep -E -q -- "$pattern" "$log_file" 2>/dev/null; then
+      return 0
+    fi
+  done < <(find "$fiber_nodes_dir" -type f -name '*.log' -print0 2>/dev/null)
+
+  return 1
 }
 
 offer_fiber_store_reset() {

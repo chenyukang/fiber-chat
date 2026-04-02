@@ -20,14 +20,21 @@ ckb_rpc_port="${CKB_RPC_PORT:-8114}"
 ckb_startup_timeout_seconds="${CKB_STARTUP_TIMEOUT_SECONDS:-60}"
 
 fiber_logs_have_incompatible_database() {
-  rg -q "incompatible database|higher version fiber executable binary|need to upgrade fiber binary" \
-    "$nodes_dir" \
-    -g '*.log'
+  local pattern="incompatible database|higher version fiber executable binary|need to upgrade fiber binary"
+  local log_file
+
+  while IFS= read -r -d '' log_file; do
+    if grep -E -q -- "$pattern" "$log_file" 2>/dev/null; then
+      return 0
+    fi
+  done < <(find "$nodes_dir" -type f -name '*.log' -print0 2>/dev/null)
+
+  return 1
 }
 
 ckb_log_has_chain_spec_mismatch() {
   local log_file="$1"
-  rg -q "chain_spec_hash mismatch" "$log_file" 2>/dev/null
+  grep -E -q -- "chain_spec_hash mismatch" "$log_file" 2>/dev/null
 }
 
 resolve_binary_path() {
