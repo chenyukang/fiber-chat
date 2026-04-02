@@ -33,21 +33,17 @@ Run it locally:
 docker run --rm -p 3000:3000 chenyukang/fiber-chat:latest
 ```
 
-Then open the web UI at:
+Wait the initialization finished, then open the web UI at:
 
 ```text
 http://127.0.0.1:3000
 ```
 
-You can also download a prebuilt release bundle from [GitHub Releases](https://github.com/chenyukang/fiber-chat/releases).
-
-After unpacking a release bundle, start it with:
+or download the prebuilt binary from the [release page](http://github.com/chenyukang/fiber-chat/releases) and run it directly:
 
 ```bash
 ./start.sh
 ```
-
-On first run, the installer still downloads `ckb`, `ckb-cli`, and `fnn` unless they are already available in your `PATH`.
 
 ## Run From Source
 
@@ -56,6 +52,8 @@ Start the Fiber network and the demo service together, Git clone this repository
 ```bash
 ./start.sh
 ```
+
+On first run, the installer still downloads `ckb`, `ckb-cli`, and `fnn` unless they are already available in your `PATH`.
 
 If you want to fully rebuild the local dev chain:
 
