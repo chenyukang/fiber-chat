@@ -1,0 +1,11 @@
+.DS_Store
+.git
+.gitignore
+target
+**/target
+bin
+*.log
+fiber-bundle/deploy/node-data
+fiber-bundle/nodes/*.log
+fiber-bundle/nodes/*/fiber/store
+fiber-bundle/nodes/*/fiber/store/**

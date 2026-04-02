@@ -127,8 +127,5 @@ if ! [[ -d "$data_dir" ]]; then
     done
     printf ' done\n'
 
-    # Also deploy the contracts.
-    run_with_progress "Deploying demo contracts" "$script_dir/deploy.sh"
-
     pkill -P $$
 fi

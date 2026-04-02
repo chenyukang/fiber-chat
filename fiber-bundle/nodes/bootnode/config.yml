@@ -27,33 +27,6 @@ rpc:
   - prof
 ckb:
   tx_tracing_polling_interval_ms: 300
-  udt_whitelist:
-  - name: SIMPLE_UDT
-    script:
-      code_hash: 0xe1e354d6d643ad42724d40967e334984534e0367405c5ae42a9d7d63d77df419
-      hash_type: Data2
-      args: 0x.*
-    auto_accept_amount: 1000
-    cell_deps:
-    - cell_dep:
-        out_point:
-          tx_hash: 0xcfcbbe3426fc724b308b2cdb1177c26dd242e6f871b099eec86478ef8825ebd8
-          index: '0x8'
-        dep_type: code
-      type_id: null
-  - name: XUDT
-    script:
-      code_hash: 0x50bd8d6680b8b9cf98b73f3c08faf8b2a21914311954118ad6609be6e78a1b95
-      hash_type: Data2
-      args: 0x.*
-    auto_accept_amount: 1000
-    cell_deps:
-    - cell_dep:
-        out_point:
-          tx_hash: 0xcfcbbe3426fc724b308b2cdb1177c26dd242e6f871b099eec86478ef8825ebd8
-          index: '0x9'
-        dep_type: code
-      type_id: null
 services:
 - fiber
 - rpc

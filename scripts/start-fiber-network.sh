@@ -19,6 +19,17 @@ ckb_rpc_host="${CKB_RPC_HOST:-127.0.0.1}"
 ckb_rpc_port="${CKB_RPC_PORT:-8114}"
 ckb_startup_timeout_seconds="${CKB_STARTUP_TIMEOUT_SECONDS:-60}"
 
+binary_is_usable() {
+  local binary_path="$1"
+  [ -x "$binary_path" ] && "$binary_path" --version >/dev/null 2>&1
+}
+
+project_binaries_are_usable() {
+  binary_is_usable "$bin_dir/ckb" \
+    && binary_is_usable "$bin_dir/ckb-cli" \
+    && binary_is_usable "$fnn_bin"
+}
+
 fiber_logs_have_incompatible_database() {
   local pattern="incompatible database|higher version fiber executable binary|need to upgrade fiber binary"
   local log_file
@@ -54,7 +65,11 @@ if [ ! -f "$install_binaries_script" ]; then
   exit 1
 fi
 
-bash "$install_binaries_script"
+if project_binaries_are_usable; then
+  echo "using preinstalled project binaries from $bin_dir"
+else
+  bash "$install_binaries_script"
+fi
 export PATH="$bin_dir:$PATH"
 
 ckb_bin="$(resolve_binary_path "$bin_dir/ckb" ckb)"

@@ -5,13 +5,15 @@ export SHELLOPTS
 project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 fiber_script="$project_dir/scripts/start-fiber-network.sh"
 fiber_nodes_dir="$project_dir/fiber-bundle/nodes"
-demo_api_base="${DEMO_API_BASE:-http://127.0.0.1:3000}"
+demo_port="${DEMO_PORT:-${PORT:-3000}}"
+demo_api_base="${DEMO_API_BASE:-http://127.0.0.1:${demo_port}}"
+demo_server_binary="${CKB_CHAT_BINARY:-$project_dir/bin/ckb-chat}"
 startup_timeout_seconds="${STARTUP_TIMEOUT_SECONDS:-240}"
 startup_grace_seconds="${STARTUP_GRACE_SECONDS:-3}"
 shutdown_grace_seconds="${SHUTDOWN_GRACE_SECONDS:-5}"
 
 startup_ports=(
-  3000
+  "$demo_port"
   8114
   8343
   8344
@@ -312,7 +314,7 @@ wait_for_demo_server() {
     if ! kill -0 "$cargo_pid" 2>/dev/null; then
       local cargo_status=0
       wait "$cargo_pid" || cargo_status=$?
-      echo "cargo run exited before demo server became ready" >&2
+      echo "demo server exited before $demo_api_base became ready" >&2
       return "$cargo_status"
     fi
 
@@ -349,6 +351,17 @@ prepare_demo_network() {
   print_success_banner "Demo network is ready for chat. Open $demo_api_base"
 }
 
+start_demo_server() {
+  if [ -x "$demo_server_binary" ]; then
+    echo "Fiber network looks healthy, starting demo server binary ..."
+    "$demo_server_binary" &
+  else
+    echo "Fiber network looks healthy, starting cargo run ..."
+    cargo run &
+  fi
+  cargo_pid=$!
+}
+
 if [ ! -f "$fiber_script" ]; then
   echo "Fiber start script is missing: $fiber_script" >&2
   exit 1
@@ -368,9 +381,7 @@ if ! start_fiber_network_once "$reset_fiber_store"; then
   fi
 fi
 
-echo "Fiber network looks healthy, starting cargo run ..."
-cargo run &
-cargo_pid=$!
+start_demo_server
 
 wait_for_demo_server
 echo "Preparing demo network ..."

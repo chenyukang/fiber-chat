@@ -33,38 +33,10 @@ Then after it finishing, open the web UI at:
 http://127.0.0.1:3000
 ```
 
-If `ckb` or `ckb-cli` already exist in your `PATH`, the installer reuses them instead of downloading new copies. It only forces reinstallation into `bin/` when you explicitly set:
-
-```bash
-FORCE_REINSTALL_BINARIES=y
-```
-
-On macOS, `fnn` currently defaults to the official `x86_64-darwin-portable` package.
-
-You can also run the installer directly:
-
-```bash
-./scripts/install-binaries.sh
-```
-
-Optional environment variables:
-- `CKB_VERSION`
-- `CKB_CLI_VERSION`
-- `FNN_VERSION`
-- `GITHUB_TOKEN` or `GH_TOKEN`
-
-Runtime uses these project-local paths:
-
-- `bin/ckb`
-- `bin/ckb-cli`
-- `bin/fnn`
-- `fiber-bundle/nodes/*`
-- `fiber-bundle/deploy/*`
-
 If you want to fully rebuild the local dev chain:
 
 ```bash
-REMOVE_OLD_STATE=y ./scripts/start-fiber-network.sh
+REMOVE_OLD_STATE=y ./start.sh
 ```
 
 If you only want to clear Fiber store state:
@@ -73,25 +45,23 @@ If you only want to clear Fiber store state:
 REMOVE_OLD_FIBER=y ./start.sh
 ```
 
-## Prepare The Network
+## Docker
 
-Click `Prepare Demo Network` in the UI.
+Build the container image:
 
-It will automatically:
+```bash
+docker build --platform linux/amd64 -t ckb-chat-demo .
+```
 
-- `connect_peer`
-- `open_channel` for `node1 -> node2`
-- `open_channel` for `node2 -> node3`
-- generate epochs until funding transactions are confirmed
-- wait for channels to reach `ChannelReady`
-- seed reverse liquidity so both directions can chat
+Run it locally:
 
-Available routes:
-- `/system`: global observer page, shows the full network timeline and does not send messages
-- `/nodes/node1`: the node-specific chat page for `node1`
+```bash
+docker run --rm -p 3000:3000 ckb-chat-demo
+```
 
-`/system` keeps the global view, while `/nodes/<node-id>` only shows conversations relevant to that node.
+The container bakes in `ckb`, `ckb-cli`, `fnn`, and the compiled `ckb-chat` server.
 
+At runtime it still uses the same `./start.sh` orchestration, but without requiring Cargo inside the container.
 
 ## Structure
 
@@ -111,4 +81,3 @@ So this demo uses a pragmatic local three-node approach:
 - the backend polls `list_payments` on each local node
 - it extracts only payments carrying the `0xcafe` chat record
 - it reconstructs the chat timeline from those payment sessions
-

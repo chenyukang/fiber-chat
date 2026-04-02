@@ -28,7 +28,6 @@ const NODE_1_2_FEE_RATE: u128 = 1_200;
 const NODE_2_3_FEE_RATE: u128 = 1_400;
 const POLL_INTERVAL_SECS: u64 = 2;
 const SEND_TIMEOUT_SECS: u64 = 60;
-const CKB_RPC_URL: &str = "http://127.0.0.1:8114";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -38,7 +37,9 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    let app = Arc::new(DemoApp::new()?);
+    let runtime = AppRuntimeConfig::from_env()?;
+    let listen_addr = runtime.listen_addr;
+    let app = Arc::new(DemoApp::new(runtime)?);
     app.refresh().await;
 
     let poller = Arc::clone(&app);
@@ -53,16 +54,16 @@ async fn main() -> Result<()> {
         .route("/", get(spa_entry))
         .route("/system", get(spa_entry))
         .route("/nodes/{node_id}", get(spa_entry))
+        .route("/api/ready", get(get_ready))
         .route("/api/state", get(get_state))
         .route("/api/prepare", post(prepare_network))
         .route("/api/send", post(send_message))
         .with_state(Arc::clone(&app))
         .fallback_service(ServeDir::new("static"));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    info!("Fiber chat demo listening on http://{addr}");
+    info!("Fiber chat demo listening on http://{listen_addr}");
 
-    let listener = tokio::net::TcpListener::bind(addr)
+    let listener = tokio::net::TcpListener::bind(listen_addr)
         .await
         .context("failed to bind http listener")?;
     axum::serve(listener, router)
@@ -74,6 +75,14 @@ async fn main() -> Result<()> {
 
 async fn get_state(State(app): State<Arc<DemoApp>>) -> Result<Json<ApiState>, ApiError> {
     Ok(Json(app.state_snapshot().await))
+}
+
+async fn get_ready(State(app): State<Arc<DemoApp>>) -> impl IntoResponse {
+    if app.is_ready().await {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    }
 }
 
 async fn prepare_network(State(app): State<Arc<DemoApp>>) -> Result<Json<ApiState>, ApiError> {
@@ -104,12 +113,13 @@ async fn spa_entry() -> Response {
 #[derive(Clone)]
 struct DemoApp {
     http: Client,
+    ckb_rpc_url: String,
     nodes: Vec<NodeConfig>,
     state: Arc<RwLock<AppState>>,
 }
 
 impl DemoApp {
-    fn new() -> Result<Self> {
+    fn new(runtime: AppRuntimeConfig) -> Result<Self> {
         let http = Client::builder()
             .timeout(Duration::from_secs(10))
             .build()
@@ -117,7 +127,8 @@ impl DemoApp {
 
         Ok(Self {
             http,
-            nodes: demo_nodes(),
+            ckb_rpc_url: runtime.ckb_rpc_url,
+            nodes: runtime.nodes,
             state: Arc::new(RwLock::new(AppState::default())),
         })
     }
@@ -152,6 +163,26 @@ impl DemoApp {
             record_key_hex: format!("0x{CHAT_RECORD_KEY:x}"),
             payment_amount_shannons: DEMO_PAYMENT_AMOUNT.to_string(),
         }
+    }
+
+    async fn is_ready(&self) -> bool {
+        let state = self.state.read().await;
+
+        self.nodes.iter().all(|config| {
+            state
+                .nodes
+                .get(config.id)
+                .map(|node| {
+                    let minimum_ready_channels = match config.id {
+                        "node1" | "node3" => 1,
+                        "node2" => 2,
+                        _ => 0,
+                    };
+
+                    node.online && node.ready_channels >= minimum_ready_channels
+                })
+                .unwrap_or(false)
+        })
     }
 
     async fn refresh(&self) {
@@ -573,7 +604,7 @@ impl DemoApp {
 
     async fn generate_epochs(&self, epochs: u64) -> Result<()> {
         self.rpc_call::<Value>(
-            CKB_RPC_URL,
+            &self.ckb_rpc_url,
             "generate_epochs",
             Some(json!([to_hex_u64(epochs)])),
         )
@@ -663,10 +694,47 @@ impl DemoApp {
 
 fn demo_nodes() -> Vec<NodeConfig> {
     vec![
-        NodeConfig::new(0, "node1", "Node 1", "http://127.0.0.1:21714"),
-        NodeConfig::new(1, "node2", "Node 2", "http://127.0.0.1:21715"),
-        NodeConfig::new(2, "node3", "Node 3", "http://127.0.0.1:21716"),
+        NodeConfig::new(
+            0,
+            "node1",
+            "Node 1",
+            env_string("NODE1_RPC_URL", "http://127.0.0.1:21714"),
+        ),
+        NodeConfig::new(
+            1,
+            "node2",
+            "Node 2",
+            env_string("NODE2_RPC_URL", "http://127.0.0.1:21715"),
+        ),
+        NodeConfig::new(
+            2,
+            "node3",
+            "Node 3",
+            env_string("NODE3_RPC_URL", "http://127.0.0.1:21716"),
+        ),
     ]
+}
+
+struct AppRuntimeConfig {
+    listen_addr: SocketAddr,
+    ckb_rpc_url: String,
+    nodes: Vec<NodeConfig>,
+}
+
+impl AppRuntimeConfig {
+    fn from_env() -> Result<Self> {
+        let listen_host = env_string("APP_HOST", "127.0.0.1");
+        let listen_port = env_u16(&["PORT", "APP_PORT"], 3000)?;
+        let listen_addr = format!("{listen_host}:{listen_port}")
+            .parse()
+            .with_context(|| format!("invalid app listen address {listen_host}:{listen_port}"))?;
+
+        Ok(Self {
+            listen_addr,
+            ckb_rpc_url: env_string("CKB_RPC_URL", "http://127.0.0.1:8114"),
+            nodes: demo_nodes(),
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -674,21 +742,21 @@ struct NodeConfig {
     sort_index: usize,
     id: &'static str,
     label: &'static str,
-    rpc_url: &'static str,
+    rpc_url: String,
 }
 
 impl NodeConfig {
-    const fn new(
+    fn new(
         sort_index: usize,
         id: &'static str,
         label: &'static str,
-        rpc_url: &'static str,
+        rpc_url: impl Into<String>,
     ) -> Self {
         Self {
             sort_index,
             id,
             label,
-            rpc_url,
+            rpc_url: rpc_url.into(),
         }
     }
 }
@@ -1154,4 +1222,28 @@ fn short_pubkey(value: &str) -> String {
     } else {
         format!("{}...{}", &value[..8], &value[value.len() - 4..])
     }
+}
+
+fn env_string(name: &str, default: &str) -> String {
+    std::env::var(name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| default.to_string())
+}
+
+fn env_u16(names: &[&str], default: u16) -> Result<u16> {
+    for name in names {
+        if let Some(raw) = std::env::var(name)
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+        {
+            return raw
+                .parse::<u16>()
+                .with_context(|| format!("environment variable {name} must be a valid u16"));
+        }
+    }
+
+    Ok(default)
 }
