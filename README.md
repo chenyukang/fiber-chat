@@ -19,18 +19,42 @@ Every message triggers a tiny keysend payment underneath.
 
 ![static/fiber-chat.png](static/fiber-chat.png)
 
-## Run
+## Quick Start
 
-1. Start the Fiber network and the demo service together
+Pull the published Docker image:
+
+```bash
+docker pull chenyukang/fiber-chat:latest
+```
+
+Run it locally:
+
+```bash
+docker run --rm -p 3000:3000 chenyukang/fiber-chat:latest
+```
+
+Then open the web UI at:
+
+```text
+http://127.0.0.1:3000
+```
+
+You can also download a prebuilt release bundle from [GitHub Releases](https://github.com/chenyukang/fiber-chat/releases).
+
+After unpacking a release bundle, start it with:
 
 ```bash
 ./start.sh
 ```
 
-Then after it finishing, open the web UI at:
+On first run, the installer still downloads `ckb`, `ckb-cli`, and `fnn` unless they are already available in your `PATH`.
 
-```text
-http://127.0.0.1:3000
+## Run From Source
+
+Start the Fiber network and the demo service together, Git clone this repository and run:
+
+```bash
+./start.sh
 ```
 
 If you want to fully rebuild the local dev chain:
@@ -47,27 +71,26 @@ REMOVE_OLD_FIBER=y ./start.sh
 
 ## Docker
 
-Build the container image:
+Build the container image from source:
 
 ```bash
-docker build --platform linux/amd64 -t ckb-chat-demo .
+docker build --platform linux/amd64 -t chenyukang/fiber-chat:local .
 ```
 
-Run it locally:
+Run the locally built image:
 
 ```bash
-docker run --rm -p 3000:3000 ckb-chat-demo
+docker run --rm -p 3000:3000 chenyukang/fiber-chat:local
 ```
 
-The container bakes in `ckb`, `ckb-cli`, `fnn`, and the compiled `ckb-chat` server.
+The published Docker image and the locally built image both bake in `ckb`, `ckb-cli`, `fnn`, and the compiled `ckb-chat` server.
 
-At runtime it still uses the same `./start.sh` orchestration, but without requiring Cargo inside the container.
 
 ## Structure
 
 - `src/main.rs`: Rust backend for Fiber JSON-RPC calls, payment polling, demo network preparation, and web APIs
 - `static/`: single-page frontend
-- `bin/`: project-local directory for `ckb`, `ckb-cli`, and `fnn`
+- `bin/`: project-local directory for downloaded binaries and the optional prebuilt `ckb-chat` binary
 - `fiber-bundle/`: vendored Fiber node configs, keys, and dev-chain dependencies
 - `scripts/install-binaries.sh`: installs the binaries needed by this project
 - `scripts/start-fiber-network.sh`: starts the three reference nodes from the local bundle
