@@ -45,14 +45,6 @@ or download the prebuilt binary from the [release page](http://github.com/chenyu
 ./start.sh
 ```
 
-## Run From Source
-
-Start the Fiber network and the demo service together, Git clone this repository and run:
-
-```bash
-./start.sh
-```
-
 On first run, the installer still downloads `ckb`, `ckb-cli`, and `fnn` unless they are already available in your `PATH`.
 
 If you want to fully rebuild the local dev chain:
@@ -66,23 +58,6 @@ If you only want to clear Fiber store state:
 ```bash
 REMOVE_OLD_FIBER=y ./start.sh
 ```
-
-## Docker
-
-Build the container image from source:
-
-```bash
-docker build --platform linux/amd64 -t chenyukang/fiber-chat:local .
-```
-
-Run the locally built image:
-
-```bash
-docker run --rm -p 3000:3000 chenyukang/fiber-chat:local
-```
-
-The published Docker image and the locally built image both bake in `ckb`, `ckb-cli`, `fnn`, and the compiled `ckb-chat` server.
-
 
 ## Structure
 
