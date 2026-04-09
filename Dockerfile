@@ -1,6 +1,4 @@
-ARG RUNTIME_PLATFORM=linux/amd64
-
-FROM --platform=$RUNTIME_PLATFORM rust:1.88-bookworm AS builder
+FROM rust:1.88-trixie AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
@@ -28,7 +26,7 @@ RUN cargo build --release
 
 RUN install -Dm755 /app/target/release/ckb-chat /app/bin/ckb-chat
 
-FROM --platform=$RUNTIME_PLATFORM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \

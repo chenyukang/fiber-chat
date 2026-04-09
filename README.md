@@ -27,6 +27,8 @@ Pull the published Docker image:
 docker pull chenyukang/fiber-chat:latest
 ```
 
+The published image supports both `linux/amd64` and `linux/arm64`.
+
 Run it locally:
 
 ```bash
@@ -39,7 +41,7 @@ Wait the initialization finished, then open the web UI at:
 http://127.0.0.1:3000
 ```
 
-or download the prebuilt binary from the [release page](http://github.com/chenyukang/fiber-chat/releases) and run it directly:
+or download the prebuilt binary from the [release page](https://github.com/chenyukang/fiber-chat/releases) and run it directly:
 
 ```bash
 ./start.sh
